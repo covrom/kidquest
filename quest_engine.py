@@ -133,6 +133,7 @@ class QuestEngine:
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
+                temperature=0.9,
                 max_tokens=8192
             )
 
