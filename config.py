@@ -13,7 +13,3 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # Model configuration
 MODEL_NAME = "qwen/qwen3-4b:free"
-
-# Bot settings
-BOT_NAME = "KidQuestBot"
-MAX_OPTIONS_PER_STEP = 3
