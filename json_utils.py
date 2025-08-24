@@ -9,8 +9,6 @@ from typing import Dict, Any, Optional
 import jsonschema
 from jsonschema import ValidationError
 
-from json_schemas import FULL_QUEST_SCHEMA, NEW_STEP_SCHEMA
-
 logger = logging.getLogger(__name__)
 
 def extract_json_from_response(content: str, schema: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
@@ -55,42 +53,6 @@ def extract_json_from_response(content: str, schema: Optional[Dict] = None) -> O
             return None
     
     return parsed_json
-
-
-def validate_full_quest(json_data: Dict[str, Any]) -> bool:
-    """
-    Validate full quest JSON structure.
-    
-    Args:
-        json_data (Dict[str, Any]): The JSON data to validate
-        
-    Returns:
-        bool: True if valid, False otherwise
-    """
-    try:
-        jsonschema.validate(json_data, FULL_QUEST_SCHEMA)
-        return True
-    except ValidationError as e:
-        logger.error(f"Full quest validation failed: {str(e)}")
-        return False
-
-
-def validate_new_step(json_data: Dict[str, Any]) -> bool:
-    """
-    Validate new quest step JSON structure.
-    
-    Args:
-        json_data (Dict[str, Any]): The JSON data to validate
-        
-    Returns:
-        bool: True if valid, False otherwise
-    """
-    try:
-        jsonschema.validate(json_data, NEW_STEP_SCHEMA)
-        return True
-    except ValidationError as e:
-        logger.error(f"New step validation failed: {str(e)}")
-        return False
 
 def extract_choice_result(content: str) -> Optional[str]:
     """

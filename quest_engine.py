@@ -5,6 +5,7 @@ from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
 
 # Import our refactored components - using relative imports from the same directory
+from json_schemas import FULL_QUEST_SCHEMA, NEW_STEP_SCHEMA
 from prompts import (
     get_quest_generation_prompt,
     get_choice_matching_prompt,
@@ -44,7 +45,7 @@ class QuestEngine:
             
             # Extract the generated quest from the response
             content = response.choices[0].message.content
-            return extract_json_from_response(str(content))
+            return extract_json_from_response(str(content), FULL_QUEST_SCHEMA)
 
         except Exception as e:
             logger.error(f"Error generating quest: {str(e)}")
@@ -139,7 +140,7 @@ class QuestEngine:
 
             # Extract the generated step from the response
             content = response.choices[0].message.content
-            return extract_json_from_response(str(content))
+            return extract_json_from_response(str(content), NEW_STEP_SCHEMA)
 
         except Exception as e:
             logger.error(f"Error creating new branch: {str(e)}")
