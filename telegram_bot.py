@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from typing import Dict, Any
 
 # Import detect_language function from utils
@@ -14,11 +15,80 @@ logger = logging.getLogger(__name__)
 class KidQuestBot:
     def __init__(self):
         self.user_states: Dict[int, Dict[str, Any]] = {}
+        self.db_path = 'kidquest_bot.db'
+        self.init_database()
+        
+    def init_database(self):
+        """Initialize the SQLite database and create required tables."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Create users table to store user states
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS user_states (
+                    user_id INTEGER PRIMARY KEY,
+                    state_data TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error initializing database: {e}")
+    
+    def save_user_state(self, user_id: int, state_data: Dict[str, Any]):
+        """Save user state to SQLite database."""
+        try:
+            import json
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Serialize the state data to JSON
+            serialized_data = json.dumps(state_data)
+            
+            # Insert or update user state
+            cursor.execute('''
+                INSERT OR REPLACE INTO user_states
+                (user_id, state_data, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (user_id, serialized_data))
+            
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error saving user state for user {user_id}: {e}")
+    
+    def load_user_state(self, user_id: int) -> Dict[str, Any]:
+        """Load user state from SQLite database."""
+        try:
+            import json
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Retrieve user state
+            cursor.execute('SELECT state_data FROM user_states WHERE user_id = ?', (user_id,))
+            result = cursor.fetchone()
+            
+            conn.close()
+            
+            if result:
+                return json.loads(result[0])
+            else:
+                return {}
+        except Exception as e:
+            logger.error(f"Error loading user state for user {user_id}: {e}")
+            return {}
         
     async def start(self, update, context):
         """Send welcome message when /start command is issued."""
         user = update.effective_user
         user_id = user.id
+        
+        # Load existing state from database or create new one
+        self.user_states[user_id] = self.load_user_state(user_id)
         
         # Detect language from Telegram's built-in language_code if available
         detected_language = 'ru'  # Default to Russian
@@ -63,10 +133,9 @@ class KidQuestBot:
         user_id = update.effective_user.id
         user = update.effective_user
         
-        # Clear any existing state for this user
-        if user_id in self.user_states:
-            del self.user_states[user_id]
-            
+        # Load existing state from database or create new one
+        self.user_states[user_id] = self.load_user_state(user_id)
+        
         # Detect language from Telegram's built-in language_code if available, otherwise default to Russian
         detected_language = 'ru'  # Default to Russian
         if user.language_code:
@@ -74,14 +143,14 @@ class KidQuestBot:
             if user.language_code.startswith('en'):
                 detected_language = 'en'
         
-        # Set initial state with language detection
+        # Clear any existing state for this user (but keep the loaded state structure)
         self.user_states[user_id] = {
             'quest_requirements': None,
             'current_quest': None,
             'current_step_id': None,
             'step_history': [],
             'quest_started': False,
-            'user_language': detected_language
+            'user_language': detected_language  # Use newly detected language
         }
         
         if detected_language == 'en':
@@ -163,6 +232,9 @@ class KidQuestBot:
             self.user_states[user_id]['current_step_id'] = start_step
             self.user_states[user_id]['step_history'] = [start_step]
             self.user_states[user_id]['quest_started'] = True
+            
+            # Save state to database before displaying first step
+            self.save_user_state(user_id, self.user_states[user_id])
             
             # Display first step
             await self.display_current_step(update, context)
@@ -269,6 +341,9 @@ class KidQuestBot:
                 state['current_step_id'] = next_step_id
                 state['step_history'].append(next_step_id)
                 
+                # Save state to database before displaying new step
+                self.save_user_state(user_id, state)
+                
                 # Display the new step
                 await self.display_current_step(update, context)
             else:
@@ -281,6 +356,9 @@ class KidQuestBot:
                     quest_data['quest']['steps'].append(new_step)
                     state['current_step_id'] = new_step['id']
                     state['step_history'].append(new_step['id'])
+                    
+                    # Save state to database before displaying new step
+                    self.save_user_state(user_id, state)
                     
                     await self.display_current_step(update, context)
                 else:
@@ -314,6 +392,9 @@ class KidQuestBot:
             prev_step_id = state['step_history'][-1]  # Get the previous step
             state['current_step_id'] = prev_step_id
             
+            # Save state to database before displaying new step
+            self.save_user_state(user_id, state)
+            
             await self.display_current_step(update, context)
         else:
             if state.get('user_language') == 'en':
@@ -325,6 +406,24 @@ class KidQuestBot:
         """Run the bot."""
         logger.info("KidQuestBot started.")
         # This would normally start the Telegram bot in a real implementation
+    
+    def load_all_user_states(self):
+        """Load all user states from database at startup (optional enhancement)."""
+        try:
+            import json
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('SELECT user_id, state_data FROM user_states')
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                user_id, state_data = row
+                self.user_states[user_id] = json.loads(state_data)
+                
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error loading all user states: {e}")
 
 # Create a global instance of the bot
 bot = KidQuestBot()
