@@ -177,7 +177,7 @@ class QuestEngine:
                 {options_text}
                 
                 Determine which choice option best matches the user's response.
-                Return only the ID of the next step (e.g., "step_2a" or "ending_1").
+                Return only the text of the matching choice option.
                 If no option fits, return "None".
                 """
             else:  # Default to Russian
@@ -188,7 +188,7 @@ class QuestEngine:
                 {options_text}
                 
                 Определи, какой вариант выбора наиболее соответствует ответу пользователя.
-                Верни только ID следующего шага (например: "step_2a" или "ending_1").
+                Верни только текст выбранного варианта.
                 Если ни один вариант не подходит, верни "None".
                 """
 
