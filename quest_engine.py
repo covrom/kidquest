@@ -13,6 +13,7 @@ from prompts import (
     get_new_branch_prompt
 )
 from json_utils import extract_json_from_response, extract_choice_result
+from quest_validation import is_valid_quest_graph
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +49,26 @@ class QuestEngine:
                     max_tokens=8192
                 )
                 
+                
                 # Extract the generated quest from the response
                 content = response.choices[0].message.content
                 result = extract_json_from_response(str(content), FULL_QUEST_SCHEMA)
                 
+                # Validate that the quest forms a valid acyclic directed graph
+                # with one input and multiple outputs
+                if result is not None and not is_valid_quest_graph(result):
+                    logger.warning("Generated quest failed validation checks")
+                    if attempt < max_retries - 1:
+                        logger.warning(f"Quest validation failed (attempt {attempt + 1}). Retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        logger.error("Failed quest validation after all retries")
+                        return None
+                
                 # If extraction was successful, return the result
                 if result is not None:
                     return result
-                
                 # If we get here, JSON extraction failed - retry if not last attempt
                 if attempt < max_retries - 1:
                     logger.warning(f"JSON extraction failed for quest generation (attempt {attempt + 1}). Retrying in {retry_delay} seconds...")
