@@ -2,8 +2,11 @@
 Validation utilities for quest structures
 """
 
+import logging
 from typing import Dict, Any, List, Set
 from collections import deque
+
+logger = logging.getLogger(__name__)
 
 
 def is_valid_quest_graph(quest_data: Dict[str, Any]) -> bool:
@@ -24,6 +27,7 @@ def is_valid_quest_graph(quest_data: Dict[str, Any]) -> bool:
     
     # Validate that we have at least one step
     if not steps:
+        logger.warning("Quest validation failed: No steps found in quest data")
         return False
     
     # Find start step ID
@@ -31,12 +35,14 @@ def is_valid_quest_graph(quest_data: Dict[str, Any]) -> bool:
     
     # Check if startStepId exists in our steps
     if start_step_id not in step_map:
+        logger.warning("Quest validation failed: startStepId '%s' not found in steps", start_step_id)
         return False
     
     # Validate each step has required fields and options are properly structured
     for step in steps:
         step_id = step.get('id')
         if not step_id:
+            logger.warning("Quest validation failed: Step missing ID")
             return False
             
         # Check that all nextStepId references point to existing steps
@@ -44,15 +50,19 @@ def is_valid_quest_graph(quest_data: Dict[str, Any]) -> bool:
         for option in options:
             next_step_id = option.get('nextStepId')
             if next_step_id and next_step_id not in step_map:
+                logger.warning("Quest validation failed: nextStepId '%s' referenced by step '%s' does not exist",
+                              next_step_id, step_id)
                 return False
     
     # Check for cycles using topological sort (Kahn's algorithm)
     if not _has_no_cycles(step_map, start_step_id):
+        logger.warning("Quest validation failed: Cycle detected in quest graph")
         return False
         
-    # Check that there is exactly one input (startStepId) 
+    # Check that there is exactly one input (startStepId)
     # and multiple outputs (steps with no outgoing edges or ending steps)
     if not _has_single_input_and_multiple_outputs(step_map, start_step_id):
+        logger.warning("Quest validation failed: Quest does not have single input and multiple outputs")
         return False
     
     return True
@@ -97,7 +107,10 @@ def _has_no_cycles(step_map: Dict[str, Any], start_step_id: str) -> bool:
                 queue.append(neighbor)
     
     # If we didn't visit all nodes, there's a cycle
-    return visited_count == len(step_map)
+    if visited_count != len(step_map):
+        logger.warning("Cycle detection failed: Not all nodes were visited during topological sort")
+        return False
+    return True
 
 
 def _has_single_input_and_multiple_outputs(step_map: Dict[str, Any], start_step_id: str) -> bool:
@@ -132,4 +145,7 @@ def _has_single_input_and_multiple_outputs(step_map: Dict[str, Any], start_step_
     
     # For a valid quest, we should have at least one output (ending step)
     # and potentially multiple outputs (multiple ending points)
-    return len(potential_outputs) >= 1
+    if len(potential_outputs) < 1:
+        logger.warning("Single input and multiple outputs validation failed: No potential outputs found")
+        return False
+    return True
