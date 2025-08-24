@@ -114,6 +114,7 @@ class QuestEngine:
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
+                temperature=0.9,
                 max_tokens=8192
             )
             
@@ -171,10 +172,7 @@ class QuestEngine:
             if detected_language == 'en':
                 prompt = f"""
                 User selected: "{user_choice}"
-                
-                Current step:
-                {current_step.get('text', 'No text')}
-                
+                                
                 Choice options:
                 {options_text}
                 
@@ -185,10 +183,7 @@ class QuestEngine:
             else:  # Default to Russian
                 prompt = f"""
                 Пользователь выбрал: "{user_choice}"
-                
-                Текущий шаг:
-                {current_step.get('text', 'Нет текста')}
-                
+                                
                 Варианты выбора:
                 {options_text}
                 
