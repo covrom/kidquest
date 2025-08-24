@@ -3,7 +3,6 @@ import logging
 from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
-from utils import detect_language
 
 logger = logging.getLogger(__name__)
 

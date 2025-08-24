@@ -5,6 +5,13 @@ from typing import Dict, Any
 # Import detect_language function from utils
 from utils import detect_language
 
+# Import telegram bot components
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+# Import configuration
+from config import TELEGRAM_BOT_TOKEN
+
 # Configure logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -405,7 +412,24 @@ class KidQuestBot:
     def run(self):
         """Run the bot."""
         logger.info("KidQuestBot started.")
-        # This would normally start the Telegram bot in a real implementation
+        
+        # Load all user states from database
+        self.load_all_user_states()
+        
+        # Create the Application and pass it your bot's token
+        application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+        # Register command handlers
+        application.add_handler(CommandHandler("start", self.start))
+        application.add_handler(CommandHandler("new", self.new_quest))
+        application.add_handler(CommandHandler("back", self.go_back))
+
+        # Register message handler for text input
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_choice))
+
+        # Run the bot until the user presses Ctrl-C
+        logger.info("Starting polling...")
+        application.run_polling()
     
     def load_all_user_states(self):
         """Load all user states from database at startup (optional enhancement)."""
