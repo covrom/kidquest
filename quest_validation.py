@@ -143,9 +143,16 @@ def _has_single_input_and_multiple_outputs(step_map: Dict[str, Any], start_step_
     # Nodes with no incoming edges are potential outputs
     potential_outputs = all_step_ids - nodes_with_incoming_edges
     
-    # For a valid quest, we should have at least one output (ending step)
-    # and potentially multiple outputs (multiple ending points)
+    # For a valid quest, we should have exactly one input (step with no incoming edges)
+    # and multiple outputs (at least 1 step with no outgoing edges)
     if len(potential_outputs) < 1:
         logger.warning("Single input and multiple outputs validation failed: No potential outputs found")
         return False
+        
+    # Check that there's exactly one node without incoming edges (single input requirement)
+    # This means nodes_with_incoming_edges should be exactly len(all_step_ids) - 1
+    if len(nodes_with_incoming_edges) != len(all_step_ids) - 1:
+        logger.warning("Single input validation failed: Expected exactly one input, found %d", len(all_step_ids) - len(nodes_with_incoming_edges))
+        return False
+        
     return True
