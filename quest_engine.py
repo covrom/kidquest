@@ -16,14 +16,14 @@ class QuestEngine:
         )
         self.model_name = MODEL_NAME
         
-    async def generate_quest(self, requirements: str) -> Optional[Dict[str, Any]]:
+    async def generate_quest(self, requirements: str, user_language: str = 'ru') -> Optional[Dict[str, Any]]:
         """
         Generate a quest scenario using LLM based on user requirements.
         This uses the OpenRouter API with qwen/qwen3-4b:free model.
         """
         try:
-            # Detect language from requirements
-            detected_language = detect_language(requirements)
+            # Use language from user state instead of detecting it
+            detected_language = user_language
             
             # Prepare the prompt for generating quest
             if detected_language == 'en':
@@ -147,7 +147,7 @@ class QuestEngine:
             logger.error(f"Error generating quest: {str(e)}")
             return None
     
-    async def process_choice(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict]) -> Optional[str]:
+    async def process_choice(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict], user_language: str = 'ru') -> Optional[str]:
         """
         Process user's choice and find the best matching option using LLM.
         Uses OpenRouter API to determine the most appropriate next step.
@@ -156,8 +156,8 @@ class QuestEngine:
             # Prepare prompt for matching user choice with options
             options_text = "\n".join([f"{i+1}. {opt['text']}" for i, opt in enumerate(current_step.get('options', []))])
             
-            # Detect language from current step text to determine appropriate response language
-            detected_language = detect_language(current_step.get('text', ''))
+            # Use language from user state instead of detecting it
+            detected_language = user_language
             
             if detected_language == 'en':
                 prompt = f"""
@@ -229,14 +229,14 @@ class QuestEngine:
             logger.error(f"Error processing choice: {str(e)}")
             return None
     
-    async def create_new_branch(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict]) -> Optional[Dict]:
+    async def create_new_branch(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict], user_language: str = 'ru') -> Optional[Dict]:
         """
         Create a new branch in the quest when no suitable option is found.
         Uses OpenRouter API to generate appropriate content for the new step.
         """
         try:
-            # Detect language from current step text to determine appropriate response language
-            detected_language = detect_language(current_step.get('text', ''))
+            # Use language from user state instead of detecting it
+            detected_language = user_language
             
             # Prepare prompt for creating new branch
             if detected_language == 'en':

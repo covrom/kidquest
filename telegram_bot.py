@@ -216,7 +216,7 @@ class KidQuestBot:
             quest_engine = QuestEngine()
             
             # Create a temporary quest object to store in state
-            quest_data = await quest_engine.generate_quest(requirements)
+            quest_data = await quest_engine.generate_quest(requirements, self.user_states[user_id]['user_language'])
             
             if not quest_data:
                 error_msg = "Извини, не удалось создать квест. Попробуй ещё раз с другими словами."
@@ -334,7 +334,7 @@ class KidQuestBot:
             from quest_engine import QuestEngine
             quest_engine = QuestEngine()
             
-            next_step_id = await quest_engine.process_choice(current_step, user_choice, quest_data['quest']['steps'])
+            next_step_id = await quest_engine.process_choice(current_step, user_choice, quest_data['quest']['steps'], state['user_language'])
             
             if next_step_id:
                 # Valid option found - proceed to next step
@@ -349,7 +349,7 @@ class KidQuestBot:
             else:
                 # No matching option - create a new branch
                 logger.info(f"No matching option for user {user_id}, creating new branch...")
-                new_step = await quest_engine.create_new_branch(current_step, user_choice, quest_data['quest']['steps'])
+                new_step = await quest_engine.create_new_branch(current_step, user_choice, quest_data['quest']['steps'], state['user_language'])
                 
                 if new_step:
                     # Add the new step to the quest data and proceed
