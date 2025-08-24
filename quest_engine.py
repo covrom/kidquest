@@ -4,6 +4,14 @@ from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
 
+# Import our refactored components - using relative imports from the same directory
+from prompts import (
+    get_quest_generation_prompt,
+    get_choice_matching_prompt,
+    get_new_branch_prompt
+)
+from json_utils import extract_json_from_response, extract_choice_result
+
 logger = logging.getLogger(__name__)
 
 class QuestEngine:
@@ -21,93 +29,9 @@ class QuestEngine:
         This uses the OpenRouter API with qwen/qwen3-4b:free model.
         """
         try:
-            # Use language from user state instead of detecting it
-            detected_language = user_language
-            
             # Prepare the prompt for generating quest
-            if detected_language == 'en':
-                prompt = f"""
-                Create a text-based quest for children (ages 5-7) based on the following requirements:
-
-                {requirements}
-
-                The quest should be:
-                - Simple and understandable for young children
-                - Educational but fun
-                - Contain 3-5 main steps with choice options
-                - Include interesting characters (animals, magic, nature)
-                - Have multiple endings
-
-                Response must be in JSON format with the following structure:
-                {{
-                    "quest": {{
-                        "title": "Quest title",
-                        "startStepId": "step_1",
-                        "steps": [
-                            {{
-                                "id": "step_1",
-                                "image": "Image description for step",
-                                "text": "Scenario text for step",
-                                "options": [
-                                    {{
-                                        "text": "Choice option 1",
-                                        "nextStepId": "step_2a",
-                                        "emoji": "😀"
-                                    }}
-                                ]
-                            }}
-                        ]
-                    }}
-                }}
-
-                Important:
-                - Use only English language
-                - Make the scenario friendly and motivating for children
-                - Each step should contain 2-3 choice options
-                - Endings must be positive and educational
-                """
-            else:  # Default to Russian
-                prompt = f"""
-                Создай текстовый квест для детей (возраст 5-7 лет) на основе следующих требований:
-
-                {requirements}
-
-                Квест должен быть:
-                - Простым и понятным для маленьких детей
-                - Образовательным, но веселым
-                - Содержать 3-5 основных шагов с вариантами выбора
-                - Иметь интересные образы (животные, магия, природа)
-                - Включать несколько концовок
-
-                Ответ должен быть в формате JSON со следующей структурой:
-                {{
-                    "quest": {{
-                        "title": "Название квеста",
-                        "startStepId": "step_1",
-                        "steps": [
-                            {{
-                                "id": "step_1",
-                                "image": "Описание изображения для шага",
-                                "text": "Текст сценария шага",
-                                "options": [
-                                    {{
-                                        "text": "Вариант выбора 1",
-                                        "nextStepId": "step_2a",
-                                        "emoji": "😀"
-                                    }}
-                                ]
-                            }}
-                        ]
-                    }}
-                }}
-
-                Важно:
-                - Используй только русский язык
-                - Сделай сценарий дружелюбным и мотивирующим для детей
-                - Каждый шаг должен содержать 2-3 варианта выбора
-                - Концовки должны быть позитивными и образовательными
-                """
-
+            prompt = get_quest_generation_prompt(requirements, user_language)
+            
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -119,29 +43,8 @@ class QuestEngine:
             )
             
             # Extract the generated quest from the response
-            try:
-                content = response.choices[0].message.content
-                if content is None:
-                    logger.error("API response content is None")
-                    return None
-                quest_data = json.loads(content)
-                return quest_data
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Failed to parse API response: {str(e)}")
-                # Try to extract JSON from markdown if it's wrapped in code blocks
-                content = response.choices[0].message.content
-                if content is None:
-                    return None
-                try:
-                    start = content.find('{')
-                    end = content.rfind('}') + 1
-                    if start != -1 and end != -1:
-                        json_str = content[start:end]
-                        quest_data = json.loads(json_str)
-                        return quest_data
-                except Exception as parse_error:
-                    logger.error(f"Failed to extract JSON from response: {str(parse_error)}")
-                    return None
+            content = response.choices[0].message.content
+            return extract_json_from_response(str(content))
 
         except Exception as e:
             logger.error(f"Error generating quest: {str(e)}")
@@ -166,31 +69,8 @@ class QuestEngine:
             # Prepare prompt for matching user choice with options (only called when no direct match)
             options_text = "\n".join([f"{i+1}. {opt['text']}" for i, opt in enumerate(current_step.get('options', []))])
             
-            # Use language from user state instead of detecting it
-            detected_language = user_language
-            
-            if detected_language == 'en':
-                prompt = f"""
-                User selected: "{user_choice}"
-                                
-                Choice options:
-                {options_text}
-                
-                Determine which choice option best matches the user's response.
-                Return only the text of the matching choice option.
-                If no option fits, return "None".
-                """
-            else:  # Default to Russian
-                prompt = f"""
-                Пользователь выбрал: "{user_choice}"
-                                
-                Варианты выбора:
-                {options_text}
-                
-                Определи, какой вариант выбора наиболее соответствует ответу пользователя.
-                Верни только текст выбранного варианта.
-                Если ни один вариант не подходит, верни "None".
-                """
+            # Generate the prompt
+            prompt = get_choice_matching_prompt(user_choice, options_text, user_language)
 
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
@@ -202,27 +82,20 @@ class QuestEngine:
             )
 
             # Extract the result from the response
-            try:
-                content = response.choices[0].message.content
-                if content is None:
-                    logger.error("API response content is None in process_choice")
-                    return None
-                    
-                result = content.strip().lower()
-                
-                if "none" in result or "не подходит" in result or "ничего не подходит" in result:
-                    return None
-                
-                # Если результат не "none", попробуем найти соответствующий шаг в опциях
-                for option in current_step.get('options', []):
-                    if result == option['text'].lower() or result in option['text'].lower():
-                        return option['nextStepId']
-                
+            content = response.choices[0].message.content
+            
+            # Get matched option text
+            matched_option_text = extract_choice_result(str(content))
+            
+            if not matched_option_text:
                 return None
                 
-            except Exception as e:
-                logger.error(f"Error parsing process_choice response: {str(e)}")
-                return None
+            # Find matching step ID in options
+            for option in current_step.get('options', []):
+                if matched_option_text == option['text'].lower() or matched_option_text in option['text'].lower():
+                    return option['nextStepId']
+            
+            return None
 
         except Exception as e:
             logger.error(f"Error processing choice: {str(e)}")
@@ -251,68 +124,8 @@ class QuestEngine:
         Uses OpenRouter API to generate appropriate content for the new step.
         """
         try:
-            # Use language from user state instead of detecting it
-            detected_language = user_language
-            
             # Prepare prompt for creating new branch
-            if detected_language == 'en':
-                prompt = f"""
-                User selected: "{user_choice}"
-                
-                Current step:
-                {current_step.get('text', 'No text')}
-                
-                Create a new quest step that corresponds to the user's choice.
-                The step should be a logical continuation of the story and contain 2-3 choice options.
-                
-                Response must be in JSON format with the following structure:
-                {{
-                    "id": "step_new_1",
-                    "image": "Image description for new step",
-                    "text": "New step scenario text",
-                    "options": [
-                        {{
-                            "text": "Choice option 1",
-                            "nextStepId": "step_new_2a",
-                            "emoji": "😀"
-                        }}
-                    ]
-                }}
-
-                Important:
-                - Use only English language
-                - Make the scenario friendly and motivating for children
-                - Each step should contain 2-3 choice options
-                """
-            else:  # Default to Russian
-                prompt = f"""
-                Пользователь выбрал: "{user_choice}"
-                
-                Текущий шаг:
-                {current_step.get('text', 'Нет текста')}
-                
-                Создай новый шаг квеста, который соответствует выбору пользователя.
-                Шаг должен быть логичным продолжением истории и содержать 2-3 варианта выбора.
-                
-                Ответ должен быть в формате JSON со следующей структурой:
-                {{
-                    "id": "step_new_1",
-                    "image": "Описание изображения для нового шага",
-                    "text": "Текст сценария нового шага",
-                    "options": [
-                        {{
-                            "text": "Вариант выбора 1",
-                            "nextStepId": "step_new_2a",
-                            "emoji": "😀"
-                        }}
-                    ]
-                }}
-
-                Важно:
-                - Используй только русский язык
-                - Сделай сценарий дружелюбным и мотивирующим для детей
-                - Каждый шаг должен содержать 2-3 варианта выбора
-                """
+            prompt = get_new_branch_prompt(user_choice, current_step.get('text', 'No text'), user_language)
 
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
@@ -324,29 +137,8 @@ class QuestEngine:
             )
 
             # Extract the generated step from the response
-            try:
-                content = response.choices[0].message.content
-                if content is None:
-                    logger.error("API response content is None in create_new_branch")
-                    return None
-                new_step_data = json.loads(content)
-                return new_step_data
-            except (json.JSONDecodeError, KeyError) as e:
-                logger.error(f"Failed to parse create_new_branch API response: {str(e)}")
-                # Try to extract JSON from markdown if it's wrapped in code blocks
-                content = response.choices[0].message.content
-                if content is None:
-                    return None
-                try:
-                    start = content.find('{')
-                    end = content.rfind('}') + 1
-                    if start != -1 and end != -1:
-                        json_str = content[start:end]
-                        new_step_data = json.loads(json_str)
-                        return new_step_data
-                except Exception as parse_error:
-                    logger.error(f"Failed to extract JSON from create_new_branch response: {str(parse_error)}")
-                    return None
+            content = response.choices[0].message.content
+            return extract_json_from_response(str(content))
 
         except Exception as e:
             logger.error(f"Error creating new branch: {str(e)}")
