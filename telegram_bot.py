@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 class KidQuestBot:
     def __init__(self):
-        # For now we'll create a mock implementation that doesn't require external dependencies
         self.user_states: Dict[int, Dict[str, Any]] = {}
         
     async def start(self, update, context):
@@ -71,7 +70,6 @@ class KidQuestBot:
         try:
             logger.info(f"Generating quest for user {user_id} with requirements: {requirements}")
             
-            # For demo purposes, we'll use a mock implementation that doesn't require external dependencies
             from quest_engine import QuestEngine
             quest_engine = QuestEngine()
             
@@ -93,7 +91,7 @@ class KidQuestBot:
             self.user_states[user_id]['step_history'] = [start_step]
             self.user_states[user_id]['quest_started'] = True
             
-            # Display first step (mock implementation)
+            # Display first step
             await self.display_current_step(update, context)
             
         except Exception as e:
@@ -102,19 +100,39 @@ class KidQuestBot:
             await update.message.reply_text(error_msg)
             
     async def display_current_step(self, update, context):
-        """Display the current step of the quest (mock implementation)."""
+        """Display the current step of the quest."""
         user_id = update.effective_user.id
         if user_id not in self.user_states:
             return
             
-        # For demo purposes, we'll just show a simple message
-        await update.message.reply_text(
-            "Это демонстрационная версия. В реальной реализации здесь будет отображаться "
-            "текст сценария и варианты выбора."
-        )
+        state = self.user_states[user_id]
+        if not state['quest_started'] or not state['current_quest']:
+            return
+            
+        # Get current step data
+        quest_data = state['current_quest']
+        steps_dict = {step['id']: step for step in quest_data['quest']['steps']}
+        current_step = steps_dict.get(state['current_step_id'])
+        
+        if not current_step:
+            await update.message.reply_text("Ошибка: не удалось найти текущий шаг квеста.")
+            return
+            
+        # Format the message with options
+        text = current_step['text']
+        
+        # Add emoji options for each choice
+        if 'options' in current_step and len(current_step['options']) > 0:
+            options_text = "\n"
+            for i, option in enumerate(current_step['options'], 1):
+                options_text += f"{option['emoji']} {option['text']}\n"
+            
+            text += f"\n\nВыбери действие:\n{options_text}"
+        
+        await update.message.reply_text(text)
         
     async def handle_choice(self, update, context):
-        """Handle user's choice and proceed to next step (mock implementation)."""
+        """Handle user's choice and proceed to next step."""
         user_id = update.effective_user.id
         
         if user_id not in self.user_states:
@@ -129,11 +147,49 @@ class KidQuestBot:
         user_choice = update.message.text
         
         try:
-            # For demo purposes, we'll just show a response
-            await update.message.reply_text(
-                f"Ты выбрал: '{user_choice}'. В реальной реализации это будет обработано "
-                "с использованием LLM для определения подходящего варианта."
-            )
+            state = self.user_states[user_id]
+            quest_data = state['current_quest']
+            
+            if not quest_data:
+                await update.message.reply_text("Ошибка: квест не загружен.")
+                return
+                
+            # Get current step data
+            steps_dict = {step['id']: step for step in quest_data['quest']['steps']}
+            current_step = steps_dict.get(state['current_step_id'])
+            
+            if not current_step:
+                await update.message.reply_text("Ошибка: текущий шаг не найден.")
+                return
+                
+            # Process the choice using QuestEngine
+            from quest_engine import QuestEngine
+            quest_engine = QuestEngine()
+            
+            next_step_id = await quest_engine.process_choice(current_step, user_choice, quest_data['quest']['steps'])
+            
+            if next_step_id:
+                # Valid option found - proceed to next step
+                state['current_step_id'] = next_step_id
+                state['step_history'].append(next_step_id)
+                
+                # Display the new step
+                await self.display_current_step(update, context)
+            else:
+                # No matching option - create a new branch
+                logger.info(f"No matching option for user {user_id}, creating new branch...")
+                new_step = await quest_engine.create_new_branch(current_step, user_choice, quest_data['quest']['steps'])
+                
+                if new_step:
+                    # Add the new step to the quest data and proceed
+                    quest_data['quest']['steps'].append(new_step)
+                    state['current_step_id'] = new_step['id']
+                    state['step_history'].append(new_step['id'])
+                    
+                    await self.display_current_step(update, context)
+                else:
+                    # If we can't create a new branch, just show an error
+                    await update.message.reply_text("Извини, я не понял твой выбор. Попробуй ещё раз!")
             
         except Exception as e:
             logger.error(f"Error processing choice for user {user_id}: {str(e)}")
@@ -141,19 +197,29 @@ class KidQuestBot:
             await update.message.reply_text(error_msg)
 
     async def go_back(self, update, context):
-        """Go back to the previous step (mock implementation)."""
+        """Go back to the previous step."""
         user_id = update.effective_user.id
         
         if user_id not in self.user_states:
             return
             
-        # For demo purposes
-        await update.message.reply_text("Возврат к предыдущему шагу (в реальной реализации)")
+        state = self.user_states[user_id]
+        
+        # Check if we have a history
+        if len(state['step_history']) > 1:
+            # Remove current step from history and go back to previous one
+            state['step_history'].pop()  # Remove current step
+            prev_step_id = state['step_history'][-1]  # Get the previous step
+            state['current_step_id'] = prev_step_id
+            
+            await self.display_current_step(update, context)
+        else:
+            await update.message.reply_text("Ты уже на первом шаге квеста!")
 
     def run(self):
-        """Run the bot - mock implementation."""
-        logger.info("KidQuestBot started. In a real implementation, this would start the Telegram bot.")
-        # This is just a placeholder for now
+        """Run the bot."""
+        logger.info("KidQuestBot started.")
+        # This would normally start the Telegram bot in a real implementation
 
 # Create a global instance of the bot
 bot = KidQuestBot()

@@ -1,173 +1,102 @@
 import json
 import logging
 from typing import Dict, List, Optional, Any
+from openai import OpenAI
+from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
 
 logger = logging.getLogger(__name__)
 
 class QuestEngine:
     def __init__(self):
-        # For now we'll create a mock implementation that returns sample data
-        pass
+        # Initialize with real API configuration using OpenAI client
+        self.client = OpenAI(
+            api_key=OPENROUTER_API_KEY,
+            base_url=OPENROUTER_BASE_URL
+        )
+        self.model_name = MODEL_NAME
         
     async def generate_quest(self, requirements: str) -> Optional[Dict[str, Any]]:
         """
         Generate a quest scenario using LLM based on user requirements.
-        This is a simplified version for demonstration purposes.
-        In production, this would call the OpenRouter API with qwen/qwen3-4b:free model.
+        This uses the OpenRouter API with qwen/qwen3-4b:free model.
         """
-        # Mock implementation - in real app this would use OpenRouter
         try:
-            # Create a sample quest structure based on requirements
-            mock_quest = {
-                "quest": {
-                    "title": f"Квест о {requirements[:20]}...",
+            # Prepare the prompt for generating quest
+            prompt = f"""
+            Создай текстовый квест для детей (возраст 5-7 лет) на основе следующих требований:
+
+            {requirements}
+
+            Квест должен быть:
+            - Простым и понятным для маленьких детей
+            - Образовательным, но веселым
+            - Содержать 3-5 основных шагов с вариантами выбора
+            - Иметь интересные образы (животные, магия, природа)
+            - Включать несколько концовок
+
+            Ответ должен быть в формате JSON со следующей структурой:
+            {{
+                "quest": {{
+                    "title": "Название квеста",
                     "startStepId": "step_1",
                     "steps": [
-                        {
+                        {{
                             "id": "step_1",
-                            "image": "Маленький дракон летит над лесом",
-                            "text": f"Привет! Я маленький дракон по имени Драко. Сегодня мы отправимся в приключение, чтобы узнать больше о {requirements}. Что ты хочешь сделать первым?",
+                            "image": "Описание изображения для шага",
+                            "text": "Текст сценария шага",
                             "options": [
-                                {
-                                    "text": "Исследовать лес",
+                                {{
+                                    "text": "Вариант выбора 1",
                                     "nextStepId": "step_2a",
-                                    "emoji": "🌲"
-                                },
-                                {
-                                    "text": "Посмотреть на животных",
-                                    "nextStepId": "step_2b",
-                                    "emoji": "🐾"
-                                }
+                                    "emoji": "😀"
+                                }}
                             ]
-                        },
-                        {
-                            "id": "step_2a",
-                            "image": "Дракон смотрит вдаль из леса",
-                            "text": "Ты исследуешь лес и находишь старое дерево. Оно выглядит очень интересно!",
-                            "options": [
-                                {
-                                    "text": "Подойти ближе",
-                                    "nextStepId": "step_3a1",
-                                    "emoji": "👉"
-                                },
-                                {
-                                    "text": "Посмотреть на землю вокруг",
-                                    "nextStepId": "step_3a2",
-                                    "emoji": "🔍"
-                                }
-                            ]
-                        },
-                        {
-                            "id": "step_2b",
-                            "image": "Дракон смотрит на птицу в небе",
-                            "text": "Ты видишь красивую птицу, которая летает над тобой!",
-                            "options": [
-                                {
-                                    "text": "Попробовать поймать её",
-                                    "nextStepId": "step_3b1",
-                                    "emoji": "🕊️"
-                                },
-                                {
-                                    "text": "Подождать и наблюдать",
-                                    "nextStepId": "step_3b2",
-                                    "emoji": "👀"
-                                }
-                            ]
-                        },
-                        # Ending steps
-                        {
-                            "id": "step_3a1",
-                            "image": "Дракон смотрит на старое дерево",
-                            "text": "Ты подходишь к дереву и видишь, что оно очень старое. Оно рассказывает тебе историю!",
-                            "options": [
-                                {
-                                    "text": "Слушать историю",
-                                    "nextStepId": "ending_1",
-                                    "emoji": "👂"
-                                },
-                                {
-                                    "text": "Попробовать сорвать плод",
-                                    "nextStepId": "ending_2",
-                                    "emoji": "🍎"
-                                }
-                            ]
-                        },
-                        {
-                            "id": "step_3a2",
-                            "image": "Дракон на земле смотрит на насекомых",
-                            "text": "Ты находишь интересных насекомых! Они показывают тебе свои особенности.",
-                            "options": [
-                                {
-                                    "text": "Посмотреть поближе",
-                                    "nextStepId": "ending_1",
-                                    "emoji": "🐛"
-                                },
-                                {
-                                    "text": "Сделать фото",
-                                    "nextStepId": "ending_3",
-                                    "emoji": "📸"
-                                }
-                            ]
-                        },
-                        {
-                            "id": "step_3b1",
-                            "image": "Дракон с птицей в руках",
-                            "text": "Ты пытаешься поймать птицу, но она улетает. Ты понимаешь, что лучше наблюдать за ней!",
-                            "options": [
-                                {
-                                    "text": "Посмотреть на неё издалека",
-                                    "nextStepId": "ending_2",
-                                    "emoji": "🦅"
-                                },
-                                {
-                                    "text": "Подождать её возвращения",
-                                    "nextStepId": "ending_3",
-                                    "emoji": "⏳"
-                                }
-                            ]
-                        },
-                        {
-                            "id": "step_3b2",
-                            "image": "Дракон наблюдает за птицей",
-                            "text": "Ты внимательно наблюдаешь за птицей и видишь, как она делает красивые манёвры!",
-                            "options": [
-                                {
-                                    "text": "Попробовать повторить движения",
-                                    "nextStepId": "ending_1",
-                                    "emoji": "🦘"
-                                },
-                                {
-                                    "text": "Сделать рисунок птицы",
-                                    "nextStepId": "ending_3",
-                                    "emoji": "✏️"
-                                }
-                            ]
-                        },
-                        # Endings
-                        {
-                            "id": "ending_1",
-                            "image": "Дракон с улыбкой в лесу",
-                            "text": "Ты узнал много нового и стал лучше понимать мир! Это было замечательное приключение!",
-                            "options": []
-                        },
-                        {
-                            "id": "ending_2",
-                            "image": "Дракон с плодом в руке",
-                            "text": "Ты получил знания о том, как важно уважать природу и не трогать чужое!",
-                            "options": []
-                        },
-                        {
-                            "id": "ending_3",
-                            "image": "Дракон с рисунком птицы",
-                            "text": "Ты сделал отличный рисунок и теперь знаешь, как выглядят эти красивые птицы!",
-                            "options": []
-                        }
+                        }}
                     ]
-                }
-            }
+                }}
+            }}
+
+            Важно:
+            - Используй только русский язык
+            - Сделай сценарий дружелюбным и мотивирующим для детей
+            - Каждый шаг должен содержать 2-3 варианта выбора
+            - Концовки должны быть позитивными и образовательными
+            """
+
+            # Make the API call using OpenAI client
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2048
+            )
             
-            return mock_quest
-            
+            # Extract the generated quest from the response
+            try:
+                content = response.choices[0].message.content
+                if content is None:
+                    logger.error("API response content is None")
+                    return None
+                quest_data = json.loads(content)
+                return quest_data
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse API response: {str(e)}")
+                # Try to extract JSON from markdown if it's wrapped in code blocks
+                content = response.choices[0].message.content
+                if content is None:
+                    return None
+                try:
+                    start = content.find('{')
+                    end = content.rfind('}') + 1
+                    if start != -1 and end != -1:
+                        json_str = content[start:end]
+                        quest_data = json.loads(json_str)
+                        return quest_data
+                except Exception as parse_error:
+                    logger.error(f"Failed to extract JSON from response: {str(parse_error)}")
+                    return None
+
         except Exception as e:
             logger.error(f"Error generating quest: {str(e)}")
             return None
@@ -175,19 +104,63 @@ class QuestEngine:
     async def process_choice(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict]) -> Optional[str]:
         """
         Process user's choice and find the best matching option using LLM.
-        This is a simplified version for demonstration purposes.
-        In production, this would call the OpenRouter API with qwen/qwen3-4b:free model.
+        Uses OpenRouter API to determine the most appropriate next step.
         """
-        # Mock implementation - in real app this would use OpenRouter
         try:
-            # Simple logic to find matching option (in reality we'd use LLM)
-            for option in current_step['options']:
-                if user_choice.lower() in option['text'].lower():
-                    return option['nextStepId']
+            # Prepare prompt for matching user choice with options
+            options_text = "\n".join([f"{i+1}. {opt['text']}" for i, opt in enumerate(current_step.get('options', []))])
             
-            # If no match found, return None to trigger new branch creation
-            return None
+            prompt = f"""
+            Пользователь выбрал: "{user_choice}"
             
+            Текущий шаг:
+            {current_step.get('text', 'Нет текста')}
+            
+            Варианты выбора:
+            {options_text}
+            
+            Определи, какой вариант выбора наиболее соответствует ответу пользователя.
+            Верни только ID следующего шага (например: "step_2a" или "ending_1").
+            Если ни один вариант не подходит, верни "None".
+            """
+
+            # Make the API call using OpenAI client
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=100
+            )
+
+            # Extract the result from the response
+            try:
+                content = response.choices[0].message.content
+                if content is None:
+                    logger.error("API response content is None in process_choice")
+                    return None
+                    
+                result = content.strip().lower()
+                
+                if "none" in result or "не подходит" in result or "ничего не подходит" in result:
+                    return None
+                    
+                # Look for matching step ID in options
+                for option in current_step.get('options', []):
+                    if user_choice.lower() in option['text'].lower():
+                        return option['nextStepId']
+                        
+                # If no direct match, try to find the best match based on content
+                for option in current_step.get('options', []):
+                    if any(word in user_choice.lower() for word in option['text'].lower().split()):
+                        return option['nextStepId']
+                
+                return None
+                
+            except Exception as e:
+                logger.error(f"Error parsing process_choice response: {str(e)}")
+                return None
+
         except Exception as e:
             logger.error(f"Error processing choice: {str(e)}")
             return None
@@ -195,34 +168,73 @@ class QuestEngine:
     async def create_new_branch(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict]) -> Optional[Dict]:
         """
         Create a new branch in the quest when no suitable option is found.
-        This is a simplified version for demonstration purposes.
-        In production, this would call the OpenRouter API with qwen/qwen3-4b:free model.
+        Uses OpenRouter API to generate appropriate content for the new step.
         """
-        # Mock implementation - in real app this would use OpenRouter
         try:
-            # Create a new step based on user's choice (simplified)
-            new_step_id = f"step_{len(all_steps) + 1}"
+            # Prepare prompt for creating new branch
+            prompt = f"""
+            Пользователь выбрал: "{user_choice}"
             
-            mock_new_step = {
-                "id": new_step_id,
-                "image": "Новый элемент в приключении",
-                "text": f"Ты выбрал: {user_choice}. Это интересное решение! Теперь мы продолжаем наше приключение...",
+            Текущий шаг:
+            {current_step.get('text', 'Нет текста')}
+            
+            Создай новый шаг квеста, который соответствует выбору пользователя.
+            Шаг должен быть логичным продолжением истории и содержать 2-3 варианта выбора.
+            
+            Ответ должен быть в формате JSON со следующей структурой:
+            {{
+                "id": "step_new_1",
+                "image": "Описание изображения для нового шага",
+                "text": "Текст сценария нового шага",
                 "options": [
-                    {
-                        "text": "Продолжить путь",
-                        "nextStepId": new_step_id + "_a",
-                        "emoji": "🚶"
-                    },
-                    {
-                        "text": "Посмотреть вокруг",
-                        "nextStepId": new_step_id + "_b",
-                        "emoji": "👀"
-                    }
+                    {{
+                        "text": "Вариант выбора 1",
+                        "nextStepId": "step_new_2a",
+                        "emoji": "😀"
+                    }}
                 ]
-            }
-            
-            return mock_new_step
-            
+            }}
+
+            Важно:
+            - Используй только русский язык
+            - Сделай сценарий дружелюбным и мотивирующим для детей
+            - Каждый шаг должен содержать 2-3 варианта выбора
+            """
+
+            # Make the API call using OpenAI client
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=1024
+            )
+
+            # Extract the generated step from the response
+            try:
+                content = response.choices[0].message.content
+                if content is None:
+                    logger.error("API response content is None in create_new_branch")
+                    return None
+                new_step_data = json.loads(content)
+                return new_step_data
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.error(f"Failed to parse create_new_branch API response: {str(e)}")
+                # Try to extract JSON from markdown if it's wrapped in code blocks
+                content = response.choices[0].message.content
+                if content is None:
+                    return None
+                try:
+                    start = content.find('{')
+                    end = content.rfind('}') + 1
+                    if start != -1 and end != -1:
+                        json_str = content[start:end]
+                        new_step_data = json.loads(json_str)
+                        return new_step_data
+                except Exception as parse_error:
+                    logger.error(f"Failed to extract JSON from create_new_branch response: {str(parse_error)}")
+                    return None
+
         except Exception as e:
             logger.error(f"Error creating new branch: {str(e)}")
             return None
