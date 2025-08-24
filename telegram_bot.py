@@ -364,11 +364,35 @@ class KidQuestBot:
                 state['current_step_id'] = next_step_id
                 state['step_history'].append(next_step_id)
                 
-                # Save state to database before displaying new step
-                self.save_user_state(user_id, state)
+                # Check if the quest is finished
+                steps_dict = {step['id']: step for step in quest_data['quest']['steps']}
+                next_step = steps_dict.get(next_step_id)
                 
-                # Display the new step
-                await self.display_current_step(update, context)
+                if next_step and quest_engine.is_quest_finished(next_step, quest_data['quest']['steps']):
+                    # Quest is finished - display completion message and start new quest
+                    if state['user_language'] == 'en':
+                        finish_message = "🎉 Congratulations! You've completed the quest!\n\n"
+                        finish_message += "Would you like to create a new quest? Just type /new!"
+                    else:
+                        finish_message = "🎉 Поздравляем! Ты завершил квест!\n\n"
+                        finish_message += "Хочешь создать новый квест? Просто напиши /new!"
+                    
+                    await update.message.reply_text(finish_message)
+                    
+                    # Reset quest state to allow starting a new one
+                    self.user_states[user_id]['current_quest'] = None
+                    self.user_states[user_id]['current_step_id'] = None
+                    self.user_states[user_id]['step_history'] = []
+                    self.user_states[user_id]['quest_started'] = False
+                    
+                    # Save the updated state
+                    self.save_user_state(user_id, self.user_states[user_id])
+                else:
+                    # Save state to database before displaying new step
+                    self.save_user_state(user_id, state)
+                    
+                    # Display the new step
+                    await self.display_current_step(update, context)
             else:
                 # No matching option - create a new branch
                 logger.info(f"No matching option for user {user_id}, creating new branch...")

@@ -218,6 +218,11 @@ class QuestEngine:
                 if "none" in result or "не подходит" in result or "ничего не подходит" in result:
                     return None
                 
+                # Если результат не "none", попробуем найти соответствующий шаг в опциях
+                for option in current_step.get('options', []):
+                    if result == option['text'].lower() or result in option['text'].lower():
+                        return option['nextStepId']
+                
                 return None
                 
             except Exception as e:
@@ -227,6 +232,23 @@ class QuestEngine:
         except Exception as e:
             logger.error(f"Error processing choice: {str(e)}")
             return None
+    
+    def is_quest_finished(self, current_step: Dict[str, Any], all_steps: List[Dict]) -> bool:
+        """
+        Check if the quest has finished (no more options or ending steps).
+        A quest is considered finished when there are no more choices to make.
+        """
+        # If current step has no options, it's likely an ending
+        if not current_step.get('options'):
+            return True
+            
+        # Check if all nextStepId values point to ending steps (ending_*)
+        for option in current_step.get('options', []):
+            next_step_id = option.get('nextStepId')
+            if next_step_id and next_step_id.startswith('ending_'):
+                return True
+                
+        return False
     
     async def create_new_branch(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict], user_language: str = 'ru') -> Optional[Dict]:
         """
