@@ -3,6 +3,7 @@ import logging
 from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
+from utils import detect_language
 
 logger = logging.getLogger(__name__)
 
@@ -21,47 +22,92 @@ class QuestEngine:
         This uses the OpenRouter API with qwen/qwen3-4b:free model.
         """
         try:
+            # Detect language from requirements
+            detected_language = detect_language(requirements)
+            
             # Prepare the prompt for generating quest
-            prompt = f"""
-            Создай текстовый квест для детей (возраст 5-7 лет) на основе следующих требований:
+            if detected_language == 'en':
+                prompt = f"""
+                Create a text-based quest for children (ages 5-7) based on the following requirements:
 
-            {requirements}
+                {requirements}
 
-            Квест должен быть:
-            - Простым и понятным для маленьких детей
-            - Образовательным, но веселым
-            - Содержать 3-5 основных шагов с вариантами выбора
-            - Иметь интересные образы (животные, магия, природа)
-            - Включать несколько концовок
+                The quest should be:
+                - Simple and understandable for young children
+                - Educational but fun
+                - Contain 3-5 main steps with choice options
+                - Include interesting characters (animals, magic, nature)
+                - Have multiple endings
 
-            Ответ должен быть в формате JSON со следующей структурой:
-            {{
-                "quest": {{
-                    "title": "Название квеста",
-                    "startStepId": "step_1",
-                    "steps": [
-                        {{
-                            "id": "step_1",
-                            "image": "Описание изображения для шага",
-                            "text": "Текст сценария шага",
-                            "options": [
-                                {{
-                                    "text": "Вариант выбора 1",
-                                    "nextStepId": "step_2a",
-                                    "emoji": "😀"
-                                }}
-                            ]
-                        }}
-                    ]
+                Response must be in JSON format with the following structure:
+                {{
+                    "quest": {{
+                        "title": "Quest title",
+                        "startStepId": "step_1",
+                        "steps": [
+                            {{
+                                "id": "step_1",
+                                "image": "Image description for step",
+                                "text": "Scenario text for step",
+                                "options": [
+                                    {{
+                                        "text": "Choice option 1",
+                                        "nextStepId": "step_2a",
+                                        "emoji": "😀"
+                                    }}
+                                ]
+                            }}
+                        ]
+                    }}
                 }}
-            }}
 
-            Важно:
-            - Используй только русский язык
-            - Сделай сценарий дружелюбным и мотивирующим для детей
-            - Каждый шаг должен содержать 2-3 варианта выбора
-            - Концовки должны быть позитивными и образовательными
-            """
+                Important:
+                - Use only English language
+                - Make the scenario friendly and motivating for children
+                - Each step should contain 2-3 choice options
+                - Endings must be positive and educational
+                """
+            else:  # Default to Russian
+                prompt = f"""
+                Создай текстовый квест для детей (возраст 5-7 лет) на основе следующих требований:
+
+                {requirements}
+
+                Квест должен быть:
+                - Простым и понятным для маленьких детей
+                - Образовательным, но веселым
+                - Содержать 3-5 основных шагов с вариантами выбора
+                - Иметь интересные образы (животные, магия, природа)
+                - Включать несколько концовок
+
+                Ответ должен быть в формате JSON со следующей структурой:
+                {{
+                    "quest": {{
+                        "title": "Название квеста",
+                        "startStepId": "step_1",
+                        "steps": [
+                            {{
+                                "id": "step_1",
+                                "image": "Описание изображения для шага",
+                                "text": "Текст сценария шага",
+                                "options": [
+                                    {{
+                                        "text": "Вариант выбора 1",
+                                        "nextStepId": "step_2a",
+                                        "emoji": "😀"
+                                    }}
+                                ]
+                            }}
+                        ]
+                    }}
+                }}
+
+                Важно:
+                - Используй только русский язык
+                - Сделай сценарий дружелюбным и мотивирующим для детей
+                - Каждый шаг должен содержать 2-3 варианта выбора
+                - Концовки должны быть позитивными и образовательными
+                """
 
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
@@ -110,19 +156,37 @@ class QuestEngine:
             # Prepare prompt for matching user choice with options
             options_text = "\n".join([f"{i+1}. {opt['text']}" for i, opt in enumerate(current_step.get('options', []))])
             
-            prompt = f"""
-            Пользователь выбрал: "{user_choice}"
+            # Detect language from current step text to determine appropriate response language
+            detected_language = detect_language(current_step.get('text', ''))
             
-            Текущий шаг:
-            {current_step.get('text', 'Нет текста')}
-            
-            Варианты выбора:
-            {options_text}
-            
-            Определи, какой вариант выбора наиболее соответствует ответу пользователя.
-            Верни только ID следующего шага (например: "step_2a" или "ending_1").
-            Если ни один вариант не подходит, верни "None".
-            """
+            if detected_language == 'en':
+                prompt = f"""
+                User selected: "{user_choice}"
+                
+                Current step:
+                {current_step.get('text', 'No text')}
+                
+                Choice options:
+                {options_text}
+                
+                Determine which choice option best matches the user's response.
+                Return only the ID of the next step (e.g., "step_2a" or "ending_1").
+                If no option fits, return "None".
+                """
+            else:  # Default to Russian
+                prompt = f"""
+                Пользователь выбрал: "{user_choice}"
+                
+                Текущий шаг:
+                {current_step.get('text', 'Нет текста')}
+                
+                Варианты выбора:
+                {options_text}
+                
+                Определи, какой вариант выбора наиболее соответствует ответу пользователя.
+                Верни только ID следующего шага (например: "step_2a" или "ending_1").
+                Если ни один вариант не подходит, верни "None".
+                """
 
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
@@ -171,35 +235,68 @@ class QuestEngine:
         Uses OpenRouter API to generate appropriate content for the new step.
         """
         try:
+            # Detect language from current step text to determine appropriate response language
+            detected_language = detect_language(current_step.get('text', ''))
+            
             # Prepare prompt for creating new branch
-            prompt = f"""
-            Пользователь выбрал: "{user_choice}"
-            
-            Текущий шаг:
-            {current_step.get('text', 'Нет текста')}
-            
-            Создай новый шаг квеста, который соответствует выбору пользователя.
-            Шаг должен быть логичным продолжением истории и содержать 2-3 варианта выбора.
-            
-            Ответ должен быть в формате JSON со следующей структурой:
-            {{
-                "id": "step_new_1",
-                "image": "Описание изображения для нового шага",
-                "text": "Текст сценария нового шага",
-                "options": [
-                    {{
-                        "text": "Вариант выбора 1",
-                        "nextStepId": "step_new_2a",
-                        "emoji": "😀"
-                    }}
-                ]
-            }}
+            if detected_language == 'en':
+                prompt = f"""
+                User selected: "{user_choice}"
+                
+                Current step:
+                {current_step.get('text', 'No text')}
+                
+                Create a new quest step that corresponds to the user's choice.
+                The step should be a logical continuation of the story and contain 2-3 choice options.
+                
+                Response must be in JSON format with the following structure:
+                {{
+                    "id": "step_new_1",
+                    "image": "Image description for new step",
+                    "text": "New step scenario text",
+                    "options": [
+                        {{
+                            "text": "Choice option 1",
+                            "nextStepId": "step_new_2a",
+                            "emoji": "😀"
+                        }}
+                    ]
+                }}
 
-            Важно:
-            - Используй только русский язык
-            - Сделай сценарий дружелюбным и мотивирующим для детей
-            - Каждый шаг должен содержать 2-3 варианта выбора
-            """
+                Important:
+                - Use only English language
+                - Make the scenario friendly and motivating for children
+                - Each step should contain 2-3 choice options
+                """
+            else:  # Default to Russian
+                prompt = f"""
+                Пользователь выбрал: "{user_choice}"
+                
+                Текущий шаг:
+                {current_step.get('text', 'Нет текста')}
+                
+                Создай новый шаг квеста, который соответствует выбору пользователя.
+                Шаг должен быть логичным продолжением истории и содержать 2-3 варианта выбора.
+                
+                Ответ должен быть в формате JSON со следующей структурой:
+                {{
+                    "id": "step_new_1",
+                    "image": "Описание изображения для нового шага",
+                    "text": "Текст сценария нового шага",
+                    "options": [
+                        {{
+                            "text": "Вариант выбора 1",
+                            "nextStepId": "step_new_2a",
+                            "emoji": "😀"
+                        }}
+                    ]
+                }}
+
+                Важно:
+                - Используй только русский язык
+                - Сделай сценарий дружелюбным и мотивирующим для детей
+                - Каждый шаг должен содержать 2-3 варианта выбора
+                """
 
             # Make the API call using OpenAI client
             response = self.client.chat.completions.create(
