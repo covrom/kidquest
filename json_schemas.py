@@ -34,7 +34,7 @@ FULL_QUEST_SCHEMA: Dict[str, Any] = {
                                 }
                             }
                         },
-                        "required": ["id", "image", "text", "options"]
+                        "required": ["id", "image", "text"]
                     }
                 }
             },
