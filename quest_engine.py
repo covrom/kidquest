@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import Dict, List, Optional, Any
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODEL_NAME
@@ -29,27 +30,50 @@ class QuestEngine:
         Generate a quest scenario using LLM based on user requirements.
         This uses the OpenRouter API with qwen/qwen3-4b:free model.
         """
-        try:
-            # Prepare the prompt for generating quest
-            prompt = get_quest_generation_prompt(requirements, user_language)
-            
-            # Make the API call using OpenAI client
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.9,
-                max_tokens=8192
-            )
-            
-            # Extract the generated quest from the response
-            content = response.choices[0].message.content
-            return extract_json_from_response(str(content), FULL_QUEST_SCHEMA)
+        max_retries = 3
+        retry_delay = 1  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                # Prepare the prompt for generating quest
+                prompt = get_quest_generation_prompt(requirements, user_language)
+                
+                # Make the API call using OpenAI client
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.9,
+                    max_tokens=8192
+                )
+                
+                # Extract the generated quest from the response
+                content = response.choices[0].message.content
+                result = extract_json_from_response(str(content), FULL_QUEST_SCHEMA)
+                
+                # If extraction was successful, return the result
+                if result is not None:
+                    return result
+                
+                # If we get here, JSON extraction failed - retry if not last attempt
+                if attempt < max_retries - 1:
+                    logger.warning(f"JSON extraction failed for quest generation (attempt {attempt + 1}). Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error("Failed to extract valid JSON after all retries")
+                    return None
 
-        except Exception as e:
-            logger.error(f"Error generating quest: {str(e)}")
-            return None
+            except Exception as e:
+                # If there's an exception during API call or processing, retry if not last attempt
+                if attempt < max_retries - 1:
+                    logger.warning(f"Error generating quest (attempt {attempt + 1}): {str(e)}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error(f"Error generating quest after all retries: {str(e)}")
+                    return None
     
     async def process_choice(self, current_step: Dict[str, Any], user_choice: str, all_steps: List[Dict], user_language: str = 'ru') -> Optional[str]:
         """
@@ -124,24 +148,47 @@ class QuestEngine:
         Create a new branch in the quest when no suitable option is found.
         Uses OpenRouter API to generate appropriate content for the new step.
         """
-        try:
-            # Prepare prompt for creating new branch
-            prompt = get_new_branch_prompt(user_choice, current_step.get('text', 'No text'), user_language)
+        max_retries = 3
+        retry_delay = 1  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                # Prepare prompt for creating new branch
+                prompt = get_new_branch_prompt(user_choice, current_step.get('text', 'No text'), user_language)
 
-            # Make the API call using OpenAI client
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.9,
-                max_tokens=8192
-            )
+                # Make the API call using OpenAI client
+                response = self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.9,
+                    max_tokens=8192
+                )
 
-            # Extract the generated step from the response
-            content = response.choices[0].message.content
-            return extract_json_from_response(str(content), NEW_STEP_SCHEMA)
+                # Extract the generated step from the response
+                content = response.choices[0].message.content
+                result = extract_json_from_response(str(content), NEW_STEP_SCHEMA)
+                
+                # If extraction was successful, return the result
+                if result is not None:
+                    return result
+                
+                # If we get here, JSON extraction failed - retry if not last attempt
+                if attempt < max_retries - 1:
+                    logger.warning(f"JSON extraction failed for new branch creation (attempt {attempt + 1}). Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error("Failed to extract valid JSON after all retries for new branch creation")
+                    return None
 
-        except Exception as e:
-            logger.error(f"Error creating new branch: {str(e)}")
-            return None
+            except Exception as e:
+                # If there's an exception during API call or processing, retry if not last attempt
+                if attempt < max_retries - 1:
+                    logger.warning(f"Error creating new branch (attempt {attempt + 1}): {str(e)}. Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.error(f"Error creating new branch after all retries: {str(e)}")
+                    return None
