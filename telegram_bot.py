@@ -280,7 +280,7 @@ class KidQuestBot:
         if 'options' in current_step and len(current_step['options']) > 0:
             options_text = "\n"
             for i, option in enumerate(current_step['options'], 1):
-                options_text += f"/{i} {option['emoji']} {option['text']}\n"
+                options_text += f"{i}. {option['emoji']} {option['text']}\n"
             
             # Use appropriate language for the prompt
             if state.get('user_language') == 'en':
