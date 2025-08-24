@@ -344,11 +344,6 @@ class KidQuestBot:
                 option_number = int(user_choice)
                 if 'options' in current_step and 1 <= option_number <= len(current_step['options']):
                     selected_option_index = option_number - 1  # Convert to zero-based index
-
-            if user_choice.startswith('/') and user_choice[1:].isdigit():
-                option_number = int(user_choice[1:])
-                if 'options' in current_step and 1 <= option_number <= len(current_step['options']):
-                    selected_option_index = option_number - 1  # Convert to zero-based index
             
             # If user entered a number, use that as the choice; otherwise process normally
             if selected_option_index is not None:
