@@ -280,7 +280,7 @@ class KidQuestBot:
         if 'options' in current_step and len(current_step['options']) > 0:
             options_text = "\n"
             for i, option in enumerate(current_step['options'], 1):
-                options_text += f"{option['emoji']} {option['text']}\n"
+                options_text += f"/{i} {option['emoji']} {option['text']}\n"
             
             # Use appropriate language for the prompt
             if state.get('user_language') == 'en':
@@ -337,11 +337,26 @@ class KidQuestBot:
             
             state['user_language'] = detected_language
             
+            # Check if user entered a number for the choice (for numbered options)
+            selected_option_index = None
+            if user_choice.isdigit():
+                option_number = int(user_choice)
+                if 'options' in current_step and 1 <= option_number <= len(current_step['options']):
+                    selected_option_index = option_number - 1  # Convert to zero-based index
+            
+            # If user entered a number, use that as the choice; otherwise process normally
+            if selected_option_index is not None:
+                # User chose by number, get the actual option text
+                chosen_option = current_step['options'][selected_option_index]
+                user_choice_text = chosen_option['text']
+            else:
+                user_choice_text = user_choice
+            
             # Process the choice using QuestEngine
             from quest_engine import QuestEngine
             quest_engine = QuestEngine()
             
-            next_step_id = await quest_engine.process_choice(current_step, user_choice, quest_data['quest']['steps'], state['user_language'])
+            next_step_id = await quest_engine.process_choice(current_step, user_choice_text, quest_data['quest']['steps'], state['user_language'])
             
             if next_step_id:
                 # Valid option found - proceed to next step
@@ -356,7 +371,7 @@ class KidQuestBot:
             else:
                 # No matching option - create a new branch
                 logger.info(f"No matching option for user {user_id}, creating new branch...")
-                new_step = await quest_engine.create_new_branch(current_step, user_choice, quest_data['quest']['steps'], state['user_language'])
+                new_step = await quest_engine.create_new_branch(current_step, user_choice_text, quest_data['quest']['steps'], state['user_language'])
                 
                 if new_step:
                     # Add the new step to the quest data and proceed

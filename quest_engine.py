@@ -152,7 +152,17 @@ class QuestEngine:
         Uses OpenRouter API to determine the most appropriate next step.
         """
         try:
-            # Prepare prompt for matching user choice with options
+            # First check for exact match with options before calling OpenAI
+            for option in current_step.get('options', []):
+                if user_choice.lower() == option['text'].lower():
+                    return option['nextStepId']
+            
+            # If no exact match, look for matching step ID in options using substring matching
+            for option in current_step.get('options', []):
+                if user_choice.lower() in option['text'].lower():
+                    return option['nextStepId']
+                    
+            # Prepare prompt for matching user choice with options (only called when no direct match)
             options_text = "\n".join([f"{i+1}. {opt['text']}" for i, opt in enumerate(current_step.get('options', []))])
             
             # Use language from user state instead of detecting it
@@ -207,16 +217,6 @@ class QuestEngine:
                 
                 if "none" in result or "не подходит" in result or "ничего не подходит" in result:
                     return None
-                    
-                # Look for matching step ID in options
-                for option in current_step.get('options', []):
-                    if user_choice.lower() in option['text'].lower():
-                        return option['nextStepId']
-                        
-                # If no direct match, try to find the best match based on content
-                for option in current_step.get('options', []):
-                    if any(word in user_choice.lower() for word in option['text'].lower().split()):
-                        return option['nextStepId']
                 
                 return None
                 
