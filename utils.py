@@ -26,27 +26,3 @@ def detect_language(text: str) -> str:
         
     # Default to Russian for this application context
     return 'ru'
-
-def sanitize_text_for_json(text: str) -> str:
-    """
-    Sanitize text that will be used in JSON to prevent issues.
-    """
-    if not isinstance(text, str):
-        return ""
-    
-    # Remove or replace problematic characters
-    sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
-    return sanitized
-
-def format_choice_text(choice_text: str) -> str:
-    """
-    Format choice text to remove any potential issues.
-    """
-    # Remove leading/trailing whitespace and normalize
-    formatted = choice_text.strip()
-    
-    # Limit length for practical reasons
-    if len(formatted) > 100:
-        formatted = formatted[:97] + "..."
-        
-    return formatted
