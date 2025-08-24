@@ -22,7 +22,7 @@ Telegram bot that creates interactive text-based quests for children (ages 5-7).
 1. Clone this repository
 2. Install dependencies:
    ```
-   pip install python-telegram-bot openai
+   pip install -r requirements.txt
    ```
 
 ## Configuration
