@@ -39,6 +39,9 @@ Response must be in JSON format with the following structure:
     }}
 }}
 
+Return the response strictly in valid JSON format, without extra text, comments or explanations.
+Make sure the JSON conforms to the standard (double quotes, correct structure, commas, etc.).
+
 Important:
 - Use only English language
 - Make the scenario friendly and motivating for children
@@ -79,6 +82,9 @@ Important:
         ]
     }}
 }}
+
+Верни ответ строго в виде валидного JSON, без лишнего текста, комментариев или пояснений.
+Убедись, что JSON соответствует стандарту (двойные кавычки, правильная структура, запятые и т.д.).
 
 Важно:
 - Используй только русский язык
@@ -140,6 +146,9 @@ Response must be in JSON format with the following structure:
     ]
 }}
 
+Return the response strictly in valid JSON format, without extra text, comments or explanations.
+Make sure the JSON conforms to the standard (double quotes, correct structure, commas, etc.).
+
 Important:
 - Use only English language
 - Make the scenario friendly and motivating for children
@@ -168,6 +177,9 @@ Important:
         }}
     ]
 }}
+
+Верни ответ строго в виде валидного JSON, без лишнего текста, комментариев или пояснений.
+Убедись, что JSON соответствует стандарту (двойные кавычки, правильная структура, запятые и т.д.).
 
 Важно:
 - Используй только русский язык
